@@ -87,10 +87,9 @@ export function renderAppointments(container) {
                     };
                     
                     if (action === 'delete') {
-                        if (!confirm('确定删除此预约记录？')) return;
+                        if (!confirm('确定删除此预约记录？此操作不可撤销。')) return;
                         try {
-                            // 先取消再删除（没有删除接口，用取消代替）
-                            await api.updateAppointmentStatus(id, 'cancelled');
+                            await api.deleteAppointment(id);
                             toast('已删除');
                             loadList();
                         } catch(e) { toast('操作失败'); }

@@ -49,8 +49,8 @@ export function renderCustomers(container) {
             }
 
             content.innerHTML = list.map(c => `
-                <div class="card" data-cust="${c.id}" style="cursor:pointer">
-                    <div style="display:flex;align-items:center;justify-content:space-between">
+                <div class="card" style="cursor:pointer;position:relative">
+                    <div style="display:flex;align-items:center;justify-content:space-between" data-cust="${c.id}">
                         <div style="flex:1">
                             <div style="font-size:15px;font-weight:600">${c.name}
                                 ${c.is_member ? '<span class="tag tag-confirmed" style="margin-left:6px">会员</span>' : ''}
@@ -62,6 +62,7 @@ export function renderCustomers(container) {
                             <div style="font-size:11px;color:var(--text-lighter);margin-top:2px">到店 ${c.visit_count||0} 次</div>
                         </div>
                     </div>
+                    <button class="btn btn-danger btn-sm" style="position:absolute;right:12px;bottom:10px" data-del-cust="${c.id}">删除</button>
                 </div>
             `).join('');
 
@@ -69,6 +70,21 @@ export function renderCustomers(container) {
                 card.addEventListener('click', () => {
                     currentCustomerId = parseInt(card.dataset.cust);
                     loadDetail(currentCustomerId);
+                });
+            });
+
+            // 删除按钮
+            content.querySelectorAll('[data-del-cust]').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const custId = parseInt(btn.dataset.delCust);
+                    const name = btn.closest('.card').querySelector('[data-cust]').textContent.trim().split('\n')[0];
+                    if (!confirm(`确定删除客户「${name}」？\n其消费记录也将一并删除，此操作不可撤销。`)) return;
+                    try {
+                        await api.deleteCustomer(custId);
+                        toast('已删除');
+                        loadList();
+                    } catch(e) { toast('删除失败'); }
                 });
             });
         } catch (e) { content.innerHTML = `<div class="empty"><div class="text">加载失败</div></div>`; }
@@ -115,24 +131,25 @@ export function renderCustomers(container) {
                         <button class="btn btn-outline btn-sm" style="flex:1" id="recharge-btn">充值</button>
                         <button class="btn btn-primary btn-sm" style="flex:1" id="consume-btn">消费</button>
                     </div>
+                    <button class="btn btn-danger btn-sm" style="width:100%;margin-top:8px" id="delete-cust-btn">删除客户</button>
                 </div>
 
                 <!-- 消费记录 -->
                 <div class="section-title">消费记录</div>
                 ${cust.consumption_records && cust.consumption_records.length > 0 ? cust.consumption_records.map(r => `
-                    <div class="card" style="padding:12px 14px">
+                    <div class="card" style="padding:12px 14px;position:relative">
                         <div style="display:flex;justify-content:space-between;align-items:flex-start">
                             <div style="flex:1">
                                 <div style="font-size:13px;font-weight:600">${r.service_name || '手动扣款'}</div>
                                 <div style="font-size:11px;color:var(--text-light);margin-top:2px">👤 ${r.technician_name || ''}</div>
                             </div>
                             <div style="text-align:right">
-                                <div style="font-size:14px;font-weight:700">¥${r.service_price.toFixed(0)}</div>
-                                <div style="font-size:10px;color:var(--text-lighter)">${r.pay_method === 'card' ? '会员卡' : r.pay_method === 'mixed' ? '混合' : '现金'}</div>
+                                <div style="font-size:14px;font-weight:700">¥${(r.amount || r.service_price || 0).toFixed(0)}</div>
+                                <div style="font-size:10px;color:var(--text-lighter)">${(r.payment_method || r.pay_method) === 'card' ? '会员卡' : (r.payment_method || r.pay_method) === 'mixed' ? '混合' : '现金'}</div>
                             </div>
                         </div>
-                        ${r.card_deduct > 0 ? `<div style="font-size:10px;color:var(--text-lighter);margin-top:4px">卡扣 ¥${r.card_deduct} 余额 ¥${r.balance_before.toFixed(0)}→¥${r.balance_after.toFixed(0)}</div>` : ''}
                         <div style="font-size:10px;color:var(--text-lighter);margin-top:4px">${r.created_at || ''}</div>
+                        <button class="btn btn-danger btn-sm" style="position:absolute;right:10px;bottom:8px;font-size:10px;padding:2px 8px" data-del-record="${r.id}">删除</button>
                     </div>
                 `).join('') : `<div class="card" style="text-align:center;padding:24px;color:var(--text-lighter)">暂无消费记录</div>`}
 
@@ -159,6 +176,27 @@ export function renderCustomers(container) {
         container.querySelector('#open-card-btn')?.addEventListener('click', () => showRechargeModal(container, cust, reloadFn, true));
         container.querySelector('#recharge-btn')?.addEventListener('click', () => showRechargeModal(container, cust, reloadFn, false));
         container.querySelector('#consume-btn')?.addEventListener('click', () => showConsumeModal(container, cust, reloadFn));
+        container.querySelector('#delete-cust-btn')?.addEventListener('click', async () => {
+            if (!confirm(`确定删除客户「${cust.name}」？\n其消费记录也将一并删除，此操作不可撤销。`)) return;
+            try {
+                await api.deleteCustomer(cust.id);
+                toast('已删除');
+                loadList();
+            } catch(e) { toast('删除失败'); }
+        });
+        // 删除消费记录
+        container.querySelectorAll('[data-del-record]').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const recordId = parseInt(btn.dataset.delRecord);
+                if (!confirm('确定删除此消费记录？')) return;
+                try {
+                    await api.deleteConsumption(recordId);
+                    toast('已删除');
+                    reloadFn(cust.id);
+                } catch(e) { toast('删除失败'); }
+            });
+        });
     }
 
     loadList();

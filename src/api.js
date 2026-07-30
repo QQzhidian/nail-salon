@@ -254,6 +254,16 @@ export const api = {
         return records;
     },
 
+    // ========== 消费记录删除 ==========
+    deleteConsumption: async (id) => {
+        await delay(50);
+        const db = getDB();
+        if (!db.consumption_records) db.consumption_records = [];
+        db.consumption_records = db.consumption_records.filter(r => r.id !== id);
+        saveDB(db);
+        return { success: true };
+    },
+
     // ========== 员工/技师 ==========
     listTechnicians: async (activeOnly = false) => {
         await delay(50);
@@ -294,9 +304,20 @@ export const api = {
     deleteTechnician: async (id) => {
         await delay(50);
         const db = getDB();
-        const idx = db.technicians.findIndex(t => t.id === id);
-        if (idx === -1) throw new Error('技师不存在');
-        db.technicians[idx].active = 0;
+        db.technicians = db.technicians.filter(t => t.id !== id);
+        saveDB(db);
+        return { success: true };
+    },
+
+    // ========== 客户删除 ==========
+    deleteCustomer: async (id) => {
+        await delay(50);
+        const db = getDB();
+        db.customers = db.customers.filter(c => c.id !== id);
+        // 同时删除关联消费记录
+        if (db.consumption_records) {
+            db.consumption_records = db.consumption_records.filter(r => r.customer_id !== id);
+        }
         saveDB(db);
         return { success: true };
     },
@@ -451,9 +472,7 @@ export const api = {
     deleteService: async (id) => {
         await delay(50);
         const db = getDB();
-        const idx = db.services.findIndex(s => s.id === id);
-        if (idx === -1) throw new Error('服务不存在');
-        db.services[idx].active = 0;
+        db.services = db.services.filter(s => s.id !== id);
         saveDB(db);
         return { success: true };
     },
@@ -514,6 +533,15 @@ export const api = {
         db.appointments[idx].status = status;
         saveDB(db);
         return db.appointments[idx];
+    },
+
+    deleteAppointment: async (id) => {
+        await delay(50);
+        const db = getDB();
+        if (!db.appointments) db.appointments = [];
+        db.appointments = db.appointments.filter(a => a.id !== id);
+        saveDB(db);
+        return { success: true };
     },
 
     todayStats: async () => {
