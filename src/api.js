@@ -561,6 +561,7 @@ export const api = {
             appointment_time: data.appointment_time || '',
             status: data.status || 'pending',
             notes: data.notes || '',
+            photo: data.photo || '',
             created_at: new Date().toISOString(),
         };
         if (!db.appointments) db.appointments = [];

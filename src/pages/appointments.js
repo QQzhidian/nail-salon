@@ -63,7 +63,8 @@ export function renderAppointments(container) {
                         💅 ${a.service_name || ''} · 👩‍🎨 ${a.technician_name || '未指定'}
                         ${a.service_price ? ` · ¥${a.service_price}` : ''}
                     </div>
-                    ${a.remark ? `<div style="font-size:12px;color:var(--text-light);margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:6px">备注：${a.remark}</div>` : ''}
+                    ${a.photo ? `<div style="margin-top:6px"><img src="${a.photo}" style="max-width:100px;max-height:100px;border-radius:6px;cursor:pointer;border:1px solid var(--border)" onclick="event.stopPropagation();this.requestFullscreen?.()"></div>` : ''}
+                    ${a.notes ? `<div style="font-size:12px;color:var(--text-light);margin-top:6px;padding:6px 8px;background:var(--bg);border-radius:6px">备注：${a.notes}</div>` : ''}
                     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
                         ${a.status === 'pending' ? `<button class="btn btn-info btn-sm" data-action="confirm" data-id="${a.id}">确认</button>` : ''}
                         ${a.status === 'confirmed' ? `<button class="btn btn-success btn-sm" data-action="complete" data-id="${a.id}">完成</button>` : ''}
@@ -191,6 +192,13 @@ async function showAddModal(container, onSuccess) {
                     <label>备注</label>
                     <textarea id="m-remark" placeholder="可选"></textarea>
                 </div>
+                <div class="form-group">
+                    <label>客户想要做的款式图</label>
+                    <div id="m-photo-area" style="width:100%;min-height:60px;border:2px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:8px">
+                        <span style="color:var(--text-lighter);font-size:13px">📸 点击上传客户想要的款式照片</span>
+                    </div>
+                    <input type="hidden" id="m-photo-url" value="">
+                </div>
                 <button class="btn btn-primary btn-block" id="m-submit">提交预约</button>
             </div>
         `;
@@ -199,6 +207,23 @@ async function showAddModal(container, onSuccess) {
         const close = () => overlay.remove();
         overlay.querySelector('.close').addEventListener('click', close);
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+        // 款式照片上传
+        overlay.querySelector('#m-photo-area').addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.addEventListener('change', async () => {
+                const file = input.files[0];
+                if (!file) return;
+                try {
+                    const res = await api.upload(file);
+                    overlay.querySelector('#m-photo-url').value = res.url;
+                    overlay.querySelector('#m-photo-area').innerHTML = `<img src="${res.url}" style="max-width:100%;max-height:200px;border-radius:6px">`;
+                } catch(e) { toast('上传失败'); }
+            });
+            input.click();
+        });
 
         // 客户搜索下拉
         const searchInput = overlay.querySelector('#m-search');
@@ -269,6 +294,7 @@ async function showAddModal(container, onSuccess) {
                 appointment_date: overlay.querySelector('#m-date').value,
                 appointment_time: overlay.querySelector('#m-time').value,
                 notes: overlay.querySelector('#m-remark').value.trim(),
+                photo: overlay.querySelector('#m-photo-url').value,
             };
             if (!data.customer_name || !data.customer_phone) { toast('请选择或输入客户信息'); return; }
             if (!/^1\d{10}$/.test(data.customer_phone)) { toast('手机号格式不正确'); return; }
