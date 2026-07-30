@@ -83,7 +83,7 @@ export async function renderDashboard(container) {
                         </div>
                         <div class="sidebar-item" data-page="employees">
                             <span class="sidebar-icon">👩‍🎨</span>
-                            <span class="sidebar-label">员工排班</span>
+                            <span class="sidebar-label">员工管理</span>
                         </div>
                         <div class="sidebar-item" data-page="card-deduct">
                             <span class="sidebar-icon">💳</span>
