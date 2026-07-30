@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- PWA / 添加到主屏幕 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="支点">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#f7f3ef">
+    
+    <!-- 禁用缓存 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <!-- iOS 图标 - 新文件名防止缓存 -->
+    <link rel="apple-touch-icon" sizes="180x180" href="zhidian-icon-180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="zhidian-icon-152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="zhidian-icon-120.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="zhidian-icon-114.png">
+    <link rel="apple-touch-icon" href="zhidian-icon-180.png">
+    
+    <link rel="manifest" href="manifest.json?v=2">
+    <title>支点 · 美甲工作台</title>
+    <link rel="stylesheet" href="styles/main.css">
+    
+    <style>
+        .pwa-guide {
+            display: none; position: fixed; bottom: 70px; left: 50%;
+            transform: translateX(-50%); background: rgba(0,0,0,0.85);
+            color: #fff; padding: 12px 20px; border-radius: 24px;
+            font-size: 13px; z-index: 999; white-space: nowrap; letter-spacing: 0.3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <div class="pwa-guide" id="pwa-guide" style="display:none">
+        ⬆️ 点击底部「分享」→「添加到主屏幕」
+    </div>
+    <script type="module" src="src/app.js"></script>
+    <script>
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isStandalone = window.navigator.standalone;
+        const guide = document.getElementById('pwa-guide');
+        if (isIOS && !isStandalone) {
+            setTimeout(() => { guide.style.display = 'block'; }, 3000);
+            setTimeout(() => { guide.style.display = 'none'; }, 12000);
+        }
+        guide.addEventListener('click', () => { guide.style.display = 'none'; });
+    </script>
+</body>
+</html>
