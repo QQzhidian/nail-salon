@@ -14,6 +14,7 @@ import { renderCardDeduct } from './card-deduct.js';
 import { renderCheckin } from './checkin.js';
 import { renderCustomers } from './customers.js';
 import { renderServices } from './services.js';
+import { renderTechnicians } from './technicians.js';
 import { renderArtworks } from './artworks.js';
 import { renderShopSettings } from './shop-settings.js';
 import { renderBusinessCard } from './business-card.js';
@@ -27,6 +28,7 @@ const pageMap = {
     'card-deduct':    { render: renderCardDeduct,    group: 'store' },
     'services':       { render: renderServices,      group: 'store' },
     'customers':      { render: renderCustomers,     group: 'customer' },
+    'technicians':    { render: renderTechnicians,   group: 'customer' },
     'checkin':        { render: renderCheckin,       group: 'customer' },
     'business-card':  { render: renderBusinessCard,  group: 'marketing' },
     'artworks':       { render: renderArtworks,      group: 'marketing' },
@@ -101,6 +103,10 @@ export async function renderDashboard(container) {
                         <div class="sidebar-item" data-page="customers">
                             <span class="sidebar-icon">👥</span>
                             <span class="sidebar-label">顾客管理</span>
+                        </div>
+                        <div class="sidebar-item" data-page="technicians">
+                            <span class="sidebar-icon">🎨</span>
+                            <span class="sidebar-label">美甲师管理</span>
                         </div>
                         <div class="sidebar-item" data-page="checkin">
                             <span class="sidebar-icon">👋</span>
