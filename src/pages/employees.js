@@ -66,7 +66,7 @@ async function renderEmployeeList(container) {
                             <span class="tag tag-${t.is_active ? 'active' : 'inactive'}">${t.is_active ? '在职' : '离职'}</span>
                         </div>
                         <div class="emp-meta">
-                            底薪 ¥${t.base_salary} · 提成 ${t.commission_rate}%
+                            ${(t.salary_type === 'commission_only') ? `纯提成 ${t.commission_rate || 0}%` : `底薪 ¥${t.base_salary || 0} · 提成 ${t.commission_rate || 0}%`}
                         </div>
                     </div>
                     <span class="emp-arrow" id="arrow-${t.id}">▾</span>
@@ -235,28 +235,29 @@ async function renderEmpSalary(container, empId) {
 function renderSalaryCard(s, empId) {
     const statusMap = { pending: '未发放', paid: '已发放' };
     const statusClass = s.status === 'paid' ? 'tag-completed' : 'tag-pending';
+    const isCommissionOnly = s.salary_type === 'commission_only';
     return `
         <div class="card salary-card" style="margin-bottom:10px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                 <div style="font-weight:600;font-size:14px">${s.salary_month} 工资</div>
                 <span class="tag ${statusClass}">${statusMap[s.status] || s.status}</span>
             </div>
+            <div style="font-size:11px;color:var(--text-light);margin-bottom:8px">${isCommissionOnly ? `纯提成模式 · 提成比例 ${s.commission_rate || 0}%` : `底薪+提成模式 · 提成比例 ${s.commission_rate || 0}%`}</div>
             <div class="salary-rows">
-                <div class="salary-row"><span>底薪</span><span>¥${s.base_salary.toFixed(0)}</span></div>
-                <div class="salary-row"><span>服务金额</span><span>¥${s.total_service_amount.toFixed(0)}</span></div>
-                <div class="salary-row"><span>服务笔数</span><span>${s.total_service_count} 笔</span></div>
-                <div class="salary-row"><span>提成</span><span>¥${s.commission.toFixed(0)}</span></div>
-                <div class="salary-row"><span>奖金</span><span>¥${s.bonus.toFixed(0)}</span></div>
-                <div class="salary-row"><span>扣款</span><span>¥${s.deduction.toFixed(0)}</span></div>
+                ${isCommissionOnly ? '' : `<div class="salary-row"><span>底薪</span><span>¥${(s.base_salary || 0).toFixed(0)}</span></div>`}
+                <div class="salary-row"><span>服务金额</span><span>¥${(s.total_consumption || s.total_service_amount || 0).toFixed(0)}</span></div>
+                <div class="salary-row"><span>提成 (${s.commission_rate || 0}%)</span><span>¥${(s.commission || 0).toFixed(0)}</span></div>
+                <div class="salary-row"><span>奖金</span><span>¥${(s.bonus || 0).toFixed(0)}</span></div>
+                <div class="salary-row"><span>扣款</span><span>¥${(s.deduction || 0).toFixed(0)}</span></div>
                 <div class="salary-row" style="font-weight:700;border-top:1px solid #eee;padding-top:8px;margin-top:4px">
-                    <span>实发合计</span><span style="font-size:16px;color:#000">¥${s.total.toFixed(0)}</span>
+                    <span>实发合计</span><span style="font-size:16px;color:#000">¥${(s.total_salary || 0).toFixed(0)}</span>
                 </div>
             </div>
             ${s.status === 'pending' ? `
             <div style="margin-top:10px;display:flex;gap:8px">
-                <input type="number" id="bonus-${s.id}" placeholder="调整奖金" value="${s.bonus}" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;width:0">
-                <input type="number" id="deduction-${s.id}" placeholder="调整扣款" value="${s.deduction}" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;width:0">
-                <button class="btn btn-success btn-sm" id="mark-paid-${s.id}">发放</button>
+                <input type="number" id="bonus-${s.id || empId}" placeholder="调整奖金" value="${s.bonus || 0}" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;width:0">
+                <input type="number" id="deduction-${s.id || empId}" placeholder="调整扣款" value="${s.deduction || 0}" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;width:0">
+                <button class="btn btn-success btn-sm" id="mark-paid-${s.id || empId}">发放</button>
             </div>` : ''}
             ${s.remark ? `<div style="font-size:11px;color:var(--text-light);margin-top:6px">备注：${s.remark}</div>` : ''}
         </div>
@@ -303,7 +304,7 @@ async function renderSalaryView(container) {
                     <div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:16px">
                         <div>
                             <div style="font-weight:600">${t.name}</div>
-                            <div style="font-size:12px;color:var(--text-light)">${t.title}</div>
+                            <div style="font-size:12px;color:var(--text-light)">${t.title || t.position || ''} · ${(t.salary_type === 'commission_only') ? `纯提成 ${t.commission_rate || 0}%` : `底薪${t.base_salary || 0} 提成${t.commission_rate || 0}%`}</div>
                         </div>
                         <button class="btn btn-outline btn-sm" data-calc-one="${t.id}">计算</button>
                     </div>
@@ -426,14 +427,21 @@ async function showEmployeeEditModal(container, tech, onSuccess) {
                 <label>简介</label>
                 <textarea id="t-intro" placeholder="从业经验、擅长风格等">${tech?.intro || ''}</textarea>
             </div>
+            <div class="form-group">
+                <label>薪资模式</label>
+                <select id="t-salary-type">
+                    <option value="fixed" ${(!tech || tech.salary_type === 'fixed') ? 'selected' : ''}>底薪 + 提成</option>
+                    <option value="commission_only" ${(tech && tech.salary_type === 'commission_only') ? 'selected' : ''}>纯提成（无底薪）</option>
+                </select>
+            </div>
             <div class="form-row">
-                <div class="form-group" style="flex:1">
+                <div class="form-group" style="flex:1" id="t-base-salary-group">
                     <label>底薪</label>
-                    <input type="number" id="t-base-salary" value="${tech?.base_salary || 3000}" placeholder="底薪">
+                    <input type="number" id="t-base-salary" value="${tech?.base_salary ?? 3000}" placeholder="底薪">
                 </div>
                 <div class="form-group" style="flex:1">
                     <label>提成率(%)</label>
-                    <input type="number" id="t-commission" value="${tech?.commission_rate || 30}" placeholder="提成率">
+                    <input type="number" id="t-commission" value="${tech?.commission_rate ?? 30}" placeholder="如：50（五五分成）">
                 </div>
             </div>
             ${isEdit ? `
@@ -473,15 +481,37 @@ async function showEmployeeEditModal(container, tech, onSuccess) {
         fileInput.click();
     });
 
+    // 薪资模式切换联动
+    const salaryTypeSelect = overlay.querySelector('#t-salary-type');
+    const baseSalaryGroup = overlay.querySelector('#t-base-salary-group');
+    const baseSalaryInput = overlay.querySelector('#t-base-salary');
+    salaryTypeSelect.addEventListener('change', () => {
+        if (salaryTypeSelect.value === 'commission_only') {
+            baseSalaryGroup.style.opacity = '0.4';
+            baseSalaryInput.value = '0';
+            baseSalaryInput.disabled = true;
+        } else {
+            baseSalaryGroup.style.opacity = '1';
+            baseSalaryInput.disabled = false;
+            if (baseSalaryInput.value === '0') baseSalaryInput.value = '';
+        }
+    });
+    if (tech?.salary_type === 'commission_only') {
+        baseSalaryGroup.style.opacity = '0.4';
+        baseSalaryInput.disabled = true;
+    }
+
     overlay.querySelector('#t-submit').addEventListener('click', async () => {
+        const salaryType = overlay.querySelector('#t-salary-type').value;
         const data = {
             name: overlay.querySelector('#t-name').value.trim(),
             phone: overlay.querySelector('#t-phone').value.trim(),
             title: overlay.querySelector('#t-title').value.trim() || '美甲师',
             intro: overlay.querySelector('#t-intro').value.trim(),
             avatar: avatarUrl,
-            base_salary: parseFloat(overlay.querySelector('#t-base-salary').value) || 3000,
-            commission_rate: parseFloat(overlay.querySelector('#t-commission').value) || 30,
+            salary_type: salaryType,
+            base_salary: parseFloat(overlay.querySelector('#t-base-salary').value) || 0,
+            commission_rate: parseFloat(overlay.querySelector('#t-commission').value) || 0,
         };
         if (!data.name) { toast('请输入姓名'); return; }
         if (isEdit) {
