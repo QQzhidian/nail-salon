@@ -102,7 +102,7 @@ export function renderAppointments(container) {
                         <div style="display:flex;justify-content:space-between;align-items:flex-start">
                             <div style="flex:1">
                                 <div style="font-size:15px;font-weight:600">${a.appointment_time} · ${a.customer_name}</div>
-                                <div style="font-size:12px;color:var(--text-light);margin-top:2px">📱 ${a.customer_phone}</div>
+                                <div style="font-size:12px;color:var(--text-light);margin-top:2px">📱 ${a.customer_phone}${a.technician_name ? ` · 💅 ${a.technician_name}` : ''}</div>
                             </div>
                             <span class="tag tag-${a.status}">${STATUS_MAP[a.status]}</span>
                         </div>
@@ -166,6 +166,7 @@ export function renderAppointments(container) {
 async function showAddModal(container, dateStr, onSuccess) {
     try {
         const customers = await api.listCustomers('');
+        const technicians = await api.listTechnicians(true);
 
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
@@ -181,8 +182,8 @@ async function showAddModal(container, dateStr, onSuccess) {
                 <div class="form-group"><label>手机号 *</label><input type="tel" id="m-phone" placeholder="选中客户自动填充" maxlength="11"></div>
 
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                    <div class="form-group"><label>日期</label><input type="date" id="m-date" value="${dateStr}"></div>
                     <div class="form-group"><label>时间</label><input type="time" id="m-time" value="14:00"></div>
+                    <div class="form-group"><label>美甲师</label><select id="m-tech">${technicians.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}</select></div>
                 </div>
 
                 <div class="form-group">
@@ -254,14 +255,17 @@ async function showAddModal(container, dateStr, onSuccess) {
         });
 
         overlay.querySelector('#m-submit').addEventListener('click', async () => {
+            const techSelect = overlay.querySelector('#m-tech');
+            const selectedTech = techSelect.options[techSelect.selectedIndex];
             const data = {
                 customer_name: nameInput.value.trim(),
                 customer_phone: phoneInput.value.trim(),
-                appointment_date: overlay.querySelector('#m-date').value,
+                appointment_date: dateStr,
                 appointment_time: overlay.querySelector('#m-time').value,
+                technician_id: parseInt(techSelect.value),
+                technician_name: selectedTech ? selectedTech.text : '',
                 photo: overlay.querySelector('#m-photo-url').value,
                 service_name: '',
-                technician_name: '',
             };
             if (!data.customer_name || !data.customer_phone) { toast('请填写客户信息'); return; }
             if (!/^1\d{10}$/.test(data.customer_phone)) { toast('手机号格式不正确'); return; }
