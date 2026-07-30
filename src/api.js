@@ -187,8 +187,10 @@ export const api = {
         const idx = db.customers.findIndex(c => c.id === custId);
         if (idx === -1) throw new Error('客户不存在');
         const amount = parseFloat(data.amount) || 0;
-        db.customers[idx].balance = (db.customers[idx].balance || 0) + amount;
-        db.customers[idx].total_recharge = (db.customers[idx].total_recharge || 0) + amount;
+        const bonus = parseFloat(data.bonus) || 0;
+        const totalAdded = amount + bonus;
+        db.customers[idx].balance = (db.customers[idx].balance || 0) + totalAdded;
+        db.customers[idx].total_recharge = (db.customers[idx].total_recharge || 0) + totalAdded;
         if (!db.customers[idx].is_member) {
             db.customers[idx].is_member = 1;
         }
@@ -202,24 +204,27 @@ export const api = {
         const idx = db.customers.findIndex(c => c.id === custId);
         if (idx === -1) throw new Error('客户不存在');
 
-        const amount = parseFloat(data.amount) || 0;
+        // 兼容两种字段命名：老版本(shop-settings/customers.js) 和 新版本(card-deduct)
+        const amount = parseFloat(data.amount || data.service_price || 0);
+        const payMethod = data.payment_method || data.pay_method || 'cash';
         const record = {
             id: nextId(db, 'consumption'),
             customer_id: custId,
             service_name: data.service_name || '',
             technician_name: data.technician_name || '',
             amount: amount,
-            payment_method: data.payment_method || 'card',
-            notes: data.notes || '',
+            payment_method: payMethod,
+            notes: data.notes || data.remark || '',
             created_at: new Date().toISOString(),
         };
 
         if (!db.consumption_records) db.consumption_records = [];
         db.consumption_records.push(record);
 
-        // 如果是会员卡扣款
-        if (data.payment_method === 'card') {
-            db.customers[idx].balance = (db.customers[idx].balance || 0) - amount;
+        // 如果是会员卡扣款或混合支付中的卡扣部分
+        const cardDeduct = parseFloat(data.card_deduct) || 0;
+        if (payMethod === 'card' || payMethod === 'mixed') {
+            db.customers[idx].balance = (db.customers[idx].balance || 0) - (cardDeduct > 0 ? cardDeduct : amount);
         }
         db.customers[idx].total_consumption = (db.customers[idx].total_consumption || 0) + amount;
 

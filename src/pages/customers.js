@@ -112,15 +112,15 @@ export function renderCustomers(container) {
                         </div>
                         <div style="display:flex;gap:6px;margin-top:10px">
                             <div style="flex:1;text-align:center;font-size:11px;color:var(--text-light)">
-                                <div style="font-size:14px;font-weight:600;color:var(--text)">¥${(cust.total_charged||0).toFixed(0)}</div>
+                                <div style="font-size:14px;font-weight:600;color:var(--text)">¥${(cust.total_recharge||0).toFixed(0)}</div>
                                 累计充值
                             </div>
                             <div style="flex:1;text-align:center;font-size:11px;color:var(--text-light)">
-                                <div style="font-size:14px;font-weight:600;color:var(--text)">¥${(cust.total_spent||0).toFixed(0)}</div>
+                                <div style="font-size:14px;font-weight:600;color:var(--text)">¥${(cust.total_consumption||0).toFixed(0)}</div>
                                 累计消费
                             </div>
                             <div style="flex:1;text-align:center;font-size:11px;color:var(--text-light)">
-                                <div style="font-size:14px;font-weight:600;color:var(--text)">${cust.visit_count||0}</div>
+                                <div style="font-size:14px;font-weight:600;color:var(--text)">${(cust.consumption_records?.length || 0)}</div>
                                 到店次数
                             </div>
                         </div>
