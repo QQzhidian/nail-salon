@@ -18,7 +18,8 @@ export function renderCustomers(container) {
             <div class="search-bar">
                 <input type="text" id="cust-search" placeholder="搜索客户姓名或手机号">
             </div>
-            <div id="cust-content" class="section">
+            <div id="alpha-bar" style="display:flex;flex-wrap:wrap;gap:4px;padding:8px 14px;background:#fff;border-bottom:1px solid var(--border-light);overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
+            <div id="cust-content" class="section" style="padding-top:8px">
                 <div class="loading"><div class="spinner"></div></div>
             </div>
         </div>
@@ -39,32 +40,77 @@ export function renderCustomers(container) {
         currentView = 'list';
         currentCustomerId = 0;
         const content = container.querySelector('#cust-content');
+        const alphaBar = container.querySelector('#alpha-bar');
         content.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
         try {
             const list = await api.listCustomers(search);
+
+            // 按拼音首字母分组排序
+            const grouped = {};
+            list.forEach(c => {
+                const initial = getPinyinInitial(c.name);
+                if (!grouped[initial]) grouped[initial] = [];
+                grouped[initial].push(c);
+            });
+
+            const sortedKeys = Object.keys(grouped).sort((a, b) => {
+                if (a === '#') return 1;
+                if (b === '#') return -1;
+                return a.localeCompare(b);
+            });
+
             if (list.length === 0) {
+                alphaBar.innerHTML = '';
                 content.innerHTML = `<div class="empty"><div style="font-size:40px;margin-bottom:12px;opacity:0.4">—</div><div class="text">暂无客户</div></div>`;
                 return;
             }
 
-            content.innerHTML = list.map(c => `
-                <div class="card" style="cursor:pointer;position:relative">
-                    <div style="display:flex;align-items:center;justify-content:space-between" data-cust="${c.id}">
-                        <div style="flex:1">
-                            <div style="font-size:15px;font-weight:600">${c.name}
-                                ${c.is_member ? '<span class="tag tag-confirmed" style="margin-left:6px">会员</span>' : ''}
+            // 渲染字母索引条
+            const allLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+            const availableLetters = sortedKeys.filter(k => k !== '#');
+            alphaBar.innerHTML = allLetters.map(l => {
+                const active = availableLetters.includes(l);
+                return `<span class="alpha-chip" data-letter="${l}"
+                    style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;flex-shrink:0;
+                    background:${active ? 'var(--text)' : '#f0f0f0'};color:${active ? '#fff' : '#ccc'}">${l}</span>`;
+            }).join('');
+
+            // 点击字母跳转
+            alphaBar.querySelectorAll('.alpha-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const letter = chip.dataset.letter;
+                    const target = content.querySelector(`[data-group="${letter}"]`);
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            });
+
+            // 渲染分组列表
+            let html = '';
+            sortedKeys.forEach(key => {
+                html += `<div data-group="${key}" style="padding:4px 0 2px;font-size:12px;font-weight:700;color:var(--text-light);letter-spacing:0.5px" id="group-${key}">${key}</div>`;
+                grouped[key].forEach(c => {
+                    html += `
+                        <div class="card" style="cursor:pointer;position:relative;margin-bottom:8px">
+                            <div style="display:flex;align-items:center;justify-content:space-between" data-cust="${c.id}">
+                                <div style="flex:1">
+                                    <div style="font-size:15px;font-weight:600">${c.name}
+                                        ${c.is_member ? '<span class="tag tag-confirmed" style="margin-left:6px">会员</span>' : ''}
+                                    </div>
+                                    <div style="font-size:12px;color:var(--text-light);margin-top:2px">📱 ${c.phone}</div>
+                                </div>
+                                <div style="text-align:right">
+                                    ${c.is_member ? `<div style="font-size:14px;font-weight:700;color:var(--primary)">¥${(c.balance||0).toFixed(0)}</div>` : ''}
+                                    <div style="font-size:11px;color:var(--text-lighter);margin-top:2px">到店 ${c.visit_count||0} 次</div>
+                                </div>
                             </div>
-                            <div style="font-size:12px;color:var(--text-light);margin-top:2px">📱 ${c.phone}</div>
-                        </div>
-                        <div style="text-align:right">
-                            ${c.is_member ? `<div style="font-size:14px;font-weight:700;color:var(--primary)">¥${(c.balance||0).toFixed(0)}</div>` : ''}
-                            <div style="font-size:11px;color:var(--text-lighter);margin-top:2px">到店 ${c.visit_count||0} 次</div>
-                        </div>
-                    </div>
-                    <button class="btn btn-danger btn-sm" style="position:absolute;right:12px;bottom:10px" data-del-cust="${c.id}">删除</button>
-                </div>
-            `).join('');
+                            <button class="btn btn-danger btn-sm" style="position:absolute;right:12px;bottom:10px" data-del-cust="${c.id}">删除</button>
+                        </div>`;
+                });
+            });
+            content.innerHTML = html;
 
             content.querySelectorAll('[data-cust]').forEach(card => {
                 card.addEventListener('click', () => {
@@ -683,4 +729,32 @@ async function showEditModal(container, cust, onSuccess) {
             onSuccess(cust.id);
         } catch (e) { toast('保存失败'); }
     });
+}
+
+/** 获取中文拼音首字母（简易版） */
+function getPinyinInitial(name) {
+    if (!name) return '#';
+    const first = name.charAt(0);
+    // 英文字母直接返回大写
+    if (/[a-zA-Z]/.test(first)) return first.toUpperCase();
+    // 非中文返回 #
+    if (!/[\u4e00-\u9fa5]/.test(first)) return '#';
+
+    // 基于 Unicode 范围的拼音首字母映射
+    const code = first.charCodeAt(0);
+    const ranges = [
+        ['A', 0x963F, 0xB0B8], ['B', 0xB0C5, 0xC5FF], ['C', 0xC644, 0xD0FF],
+        ['D', 0xD149, 0xDAFF], ['E', 0xDB09, 0xDFFF], ['F', 0xE00A, 0xE5FF],
+        ['G', 0xE604, 0xECFF], ['H', 0xED0D, 0xF2FF], ['J', 0xF30A, 0xFAFF],
+        ['K', 0xFB07, 0xFDFF], ['L', 0xFE09, 0x101FF], ['M', 0x10209, 0x107FF],
+        ['N', 0x1080D, 0x10DFF], ['O', 0x10E09, 0x10F5F], ['P', 0x10F69, 0x115FF],
+        ['Q', 0x1160D, 0x11BFF], ['R', 0x11C09, 0x120FF], ['S', 0x1210D, 0x128FF],
+        ['T', 0x12909, 0x12FFF], ['W', 0x1300D, 0x134FF], ['X', 0x13509, 0x13BFF],
+        ['Y', 0x13C0D, 0x140FF], ['Z', 0x14109, 0x146FF],
+    ];
+
+    for (const [letter, start, end] of ranges) {
+        if (code >= start && code <= end) return letter;
+    }
+    return '#';
 }
