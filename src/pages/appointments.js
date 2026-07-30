@@ -137,29 +137,35 @@ export function renderAppointments(container) {
 
 async function showAddModal(container, onSuccess) {
     try {
-        const [technicians, services] = await Promise.all([
+        const [technicians, services, customers] = await Promise.all([
             api.listTechnicians(true),
             api.listServices(true),
+            api.listCustomers(''),
         ]);
-        
+
         const now = new Date();
         const today = now.toISOString().split('T')[0];
-        
+
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.innerHTML = `
-            <div class="modal">
+            <div class="modal" style="max-width:420px">
                 <div class="modal-header">
                     <h2>新增预约</h2>
                     <span class="close">×</span>
                 </div>
+                <div class="form-group" style="position:relative">
+                    <label>搜索客户</label>
+                    <input type="text" id="m-search" placeholder="输入姓名或手机号搜索已有客户…" autocomplete="off">
+                    <div id="m-cust-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;max-height:180px;overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:8px;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,0.1)"></div>
+                </div>
                 <div class="form-group">
                     <label>客户姓名</label>
-                    <input type="text" id="m-name" placeholder="请输入姓名">
+                    <input type="text" id="m-name" placeholder="选中客户自动填充">
                 </div>
                 <div class="form-group">
                     <label>手机号</label>
-                    <input type="tel" id="m-phone" placeholder="请输入手机号" maxlength="11">
+                    <input type="tel" id="m-phone" placeholder="选中客户自动填充" maxlength="11">
                 </div>
                 <div class="form-group">
                     <label>服务项目</label>
@@ -189,19 +195,73 @@ async function showAddModal(container, onSuccess) {
             </div>
         `;
         document.body.appendChild(overlay);
-        
+
         const close = () => overlay.remove();
         overlay.querySelector('.close').addEventListener('click', close);
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-        
+
+        // 客户搜索下拉
+        const searchInput = overlay.querySelector('#m-search');
+        const dropdown = overlay.querySelector('#m-cust-dropdown');
+        const nameInput = overlay.querySelector('#m-name');
+        const phoneInput = overlay.querySelector('#m-phone');
+
+        function filterCustomers(query) {
+            const q = query.toLowerCase().trim();
+            if (!q) return [];
+            // 按姓氏拼音排序（中文默认按 Unicode 排序基本就是拼音序）
+            return customers
+                .filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q))
+                .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+                .slice(0, 8);
+        }
+
+        function selectCustomer(c) {
+            nameInput.value = c.name;
+            phoneInput.value = c.phone;
+            searchInput.value = `${c.name} · ${c.phone}`;
+            dropdown.style.display = 'none';
+        }
+
+        searchInput.addEventListener('input', () => {
+            const results = filterCustomers(searchInput.value);
+            if (results.length === 0) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            dropdown.innerHTML = results.map(c => `
+                <div style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center"
+                     data-cust-id="${c.id}" data-cust-name="${c.name}" data-cust-phone="${c.phone}">
+                    <span style="font-weight:500">${c.name}</span>
+                    <span style="color:var(--text-light);font-size:12px">📱 ${c.phone}</span>
+                </div>
+            `).join('');
+            dropdown.style.display = 'block';
+
+            dropdown.querySelectorAll('div[data-cust-id]').forEach(item => {
+                item.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    selectCustomer({
+                        name: item.dataset.custName,
+                        phone: item.dataset.custPhone
+                    });
+                });
+            });
+        });
+
+        // 点击其他地方关闭下拉
+        document.addEventListener('click', function closeDropdown(e) {
+            if (!overlay.contains(e.target)) dropdown.style.display = 'none';
+        }, { once: true });
+
         overlay.querySelector('#m-submit').addEventListener('click', async () => {
             const serviceId = parseInt(overlay.querySelector('#m-service').value);
             const techId = parseInt(overlay.querySelector('#m-tech').value);
             const serviceOpt = overlay.querySelector('#m-service').selectedOptions[0];
             const techOpt = overlay.querySelector('#m-tech').selectedOptions[0];
             const data = {
-                customer_name: overlay.querySelector('#m-name').value.trim(),
-                customer_phone: overlay.querySelector('#m-phone').value.trim(),
+                customer_name: nameInput.value.trim(),
+                customer_phone: phoneInput.value.trim(),
                 service_id: serviceId,
                 service_name: serviceOpt ? serviceOpt.text.split(' - ')[0] : '',
                 technician_id: techId,
@@ -210,7 +270,7 @@ async function showAddModal(container, onSuccess) {
                 appointment_time: overlay.querySelector('#m-time').value,
                 notes: overlay.querySelector('#m-remark').value.trim(),
             };
-            if (!data.customer_name || !data.customer_phone) { toast('请填写姓名和手机号'); return; }
+            if (!data.customer_name || !data.customer_phone) { toast('请选择或输入客户信息'); return; }
             if (!/^1\d{10}$/.test(data.customer_phone)) { toast('手机号格式不正确'); return; }
             try {
                 await api.createAppointment(data);

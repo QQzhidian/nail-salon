@@ -136,6 +136,8 @@ export const api = {
                 c.phone.includes(s)
             );
         }
+        // 按姓氏拼音排序
+        list.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
         return list;
     },
 
