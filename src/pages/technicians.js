@@ -36,9 +36,9 @@ export async function renderTechnicians(container) {
                             ${t.avatar ? `<img src="${t.avatar}" style="width:100%;height:100%;object-fit:cover">` : '👩‍🎨'}
                         </div>
                         <div style="flex:1">
-                            <div style="font-size:15px;font-weight:600">${t.name} <span style="font-size:12px;color:var(--text-light);font-weight:400">${t.title}</span></div>
-                            <div style="font-size:12px;color:var(--text-light);margin-top:2px">${t.intro || '暂无介绍'}</div>
-                            <div style="font-size:11px;color:var(--text-lighter);margin-top:2px">作品 ${t.artwork_count} 个</div>
+                            <div style="font-size:15px;font-weight:600">${t.name} <span style="font-size:12px;color:var(--text-light);font-weight:400">${t.title || t.position || ''}</span></div>
+                            <div style="font-size:12px;color:var(--text-light);margin-top:2px">💰 ${t.salary_type === 'commission_only' ? `纯提成 ${t.commission_rate}%` : `底薪${t.base_salary || 0} + 提成${t.commission_rate || 0}%`}</div>
+                            <div style="font-size:11px;color:var(--text-lighter);margin-top:2px">${t.intro || '暂无介绍'}</div>
                         </div>
                         <span class="tag tag-${t.is_active ? 'active' : 'inactive'}">${t.is_active ? '在职' : '离职'}</span>
                     </div>
@@ -108,6 +108,21 @@ async function showEditModal(container, tech, onSuccess) {
                 <input type="text" id="t-title" value="${tech?.title || ''}" placeholder="如：资深美甲师">
             </div>
             <div class="form-group">
+                <label>薪资模式</label>
+                <select id="t-salary-type">
+                    <option value="fixed" ${(!tech || tech.salary_type === 'fixed') ? 'selected' : ''}>底薪 + 提成</option>
+                    <option value="commission_only" ${(tech && tech.salary_type === 'commission_only') ? 'selected' : ''}>纯提成（无底薪）</option>
+                </select>
+            </div>
+            <div id="t-base-salary-group" class="form-group">
+                <label>底薪（元/月）</label>
+                <input type="number" id="t-base-salary" value="${tech?.base_salary || 0}" placeholder="如：5000，纯提成模式可填 0" step="100">
+            </div>
+            <div class="form-group">
+                <label>提成比例（%）</label>
+                <input type="number" id="t-commission" value="${tech?.commission_rate || 30}" placeholder="如：30（三成）或 50（五五分成）" step="1" min="0" max="100">
+            </div>
+            <div class="form-group">
                 <label>简介</label>
                 <textarea id="t-intro" placeholder="从业经验、擅长风格等">${tech?.intro || ''}</textarea>
             </div>
@@ -148,11 +163,36 @@ async function showEditModal(container, tech, onSuccess) {
         fileInput.click();
     });
     
+    // 薪资模式切换联动
+    const salaryTypeSelect = overlay.querySelector('#t-salary-type');
+    const baseSalaryGroup = overlay.querySelector('#t-base-salary-group');
+    const baseSalaryInput = overlay.querySelector('#t-base-salary');
+    salaryTypeSelect.addEventListener('change', () => {
+        if (salaryTypeSelect.value === 'commission_only') {
+            baseSalaryGroup.style.opacity = '0.4';
+            baseSalaryInput.value = '0';
+            baseSalaryInput.disabled = true;
+        } else {
+            baseSalaryGroup.style.opacity = '1';
+            baseSalaryInput.disabled = false;
+            if (baseSalaryInput.value === '0') baseSalaryInput.value = '';
+        }
+    });
+    // 初始化状态
+    if (tech?.salary_type === 'commission_only') {
+        baseSalaryGroup.style.opacity = '0.4';
+        baseSalaryInput.disabled = true;
+    }
+
     overlay.querySelector('#t-submit').addEventListener('click', async () => {
+        const salaryType = overlay.querySelector('#t-salary-type').value;
         const data = {
             name: overlay.querySelector('#t-name').value.trim(),
             title: overlay.querySelector('#t-title').value.trim() || '美甲师',
             intro: overlay.querySelector('#t-intro').value.trim(),
+            salary_type: salaryType,
+            base_salary: parseFloat(overlay.querySelector('#t-base-salary').value) || 0,
+            commission_rate: parseFloat(overlay.querySelector('#t-commission').value) || 0,
             avatar: avatarUrl,
         };
         if (!data.name) { toast('请输入姓名'); return; }

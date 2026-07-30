@@ -29,9 +29,9 @@ function initDB() {
         password: '123456',
         customers: [],
         technicians: [
-            { id: 1, name: '小美', phone: '13800001001', position: '高级美甲师', base_salary: 5000, commission_rate: 30, avatar: '', active: 1 },
-            { id: 2, name: '小丽', phone: '13800001002', position: '美甲师',     base_salary: 4000, commission_rate: 25, avatar: '', active: 1 },
-            { id: 3, name: '小雅', phone: '13800001003', position: '资深美甲师', base_salary: 6000, commission_rate: 35, avatar: '', active: 1 },
+            { id: 1, name: '小美', phone: '13800001001', position: '高级美甲师', base_salary: 5000, commission_rate: 30, salary_type: 'fixed', avatar: '', active: 1 },
+            { id: 2, name: '小丽', phone: '13800001002', position: '美甲师',     base_salary: 4000, commission_rate: 25, salary_type: 'fixed', avatar: '', active: 1 },
+            { id: 3, name: '小雅', phone: '13800001003', position: '资深美甲师', base_salary: 6000, commission_rate: 35, salary_type: 'fixed', avatar: '', active: 1 },
         ],
         services: [
             { id: 1, name: '基础修甲',       price: 58,  duration: 30, category: '护理',  active: 1 },
@@ -331,6 +331,7 @@ export const api = {
             position: data.position || '美甲师',
             base_salary: parseFloat(data.base_salary) || 0,
             commission_rate: parseFloat(data.commission_rate) || 30,
+            salary_type: data.salary_type || 'fixed',
             avatar: data.avatar || '',
             active: data.active !== undefined ? data.active : 1,
         };
@@ -423,7 +424,8 @@ export const api = {
         );
         const totalAmount = records.reduce((sum, r) => sum + r.amount, 0);
         const commission = Math.round(totalAmount * tech.commission_rate / 100);
-        const totalSalary = tech.base_salary + commission;
+        const base = tech.salary_type === 'commission_only' ? 0 : tech.base_salary;
+        const totalSalary = base + commission;
 
         // 查找已有工资记录
         const existingIdx = (db.salaries || []).findIndex(
@@ -434,7 +436,9 @@ export const api = {
             technician_id: parseInt(techId),
             technician_name: tech.name,
             salary_month: month,
-            base_salary: tech.base_salary,
+            salary_type: tech.salary_type || 'fixed',
+            base_salary: base,
+            commission_rate: tech.commission_rate,
             commission: commission,
             total_consumption: totalAmount,
             total_salary: totalSalary,
