@@ -266,6 +266,7 @@ export const api = {
         if (payMethod === 'card' || payMethod === 'mixed') {
             db.customers[idx].balance = (db.customers[idx].balance || 0) - (cardDeduct > 0 ? cardDeduct : amount);
         }
+        // 次卡不扣余额，只记录
         db.customers[idx].total_consumption = (db.customers[idx].total_consumption || 0) + amount;
 
         saveDB(db);

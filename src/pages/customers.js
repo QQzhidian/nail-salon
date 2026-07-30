@@ -106,10 +106,20 @@ export function renderCustomers(container) {
                     </div>
                     <div style="font-size:13px;color:var(--text-light);margin-top:4px">📱 ${cust.phone}</div>
                     ${cust.is_member ? `
+                        ${cust.card_type === 'count' ? `
+                        <!-- 次卡信息 -->
+                        <div style="margin-top:14px;padding:12px;background:#fafafa;border-radius:10px">
+                            <div style="font-size:13px;color:var(--text-light);margin-bottom:4px">🔢 次卡 · ${cust.count_service_name || '服务'}</div>
+                            <div style="font-size:28px;font-weight:700;color:#000">${cust.count_remaining || 0} <span style="font-size:14px;font-weight:400;color:var(--text-light)">/ ${cust.count_times || 0} 次</span></div>
+                            <div style="font-size:11px;color:var(--text-light);margin-top:2px">¥${cust.count_service_price || 0}/次</div>
+                        </div>
+                        ` : `
+                        <!-- 储值卡信息 -->
                         <div style="margin-top:14px;padding:12px;background:#fafafa;border-radius:10px">
                             <div style="font-size:28px;font-weight:700;color:#000">¥${(cust.balance||0).toFixed(0)}</div>
                             <div style="font-size:11px;color:var(--text-light);margin-top:2px">卡内余额</div>
                         </div>
+                        `}
                         <div style="display:flex;gap:6px;margin-top:10px">
                             <div style="flex:1;text-align:center;font-size:11px;color:var(--text-light)">
                                 <div style="font-size:14px;font-weight:600;color:var(--text)">¥${(cust.total_recharge||0).toFixed(0)}</div>
@@ -128,7 +138,7 @@ export function renderCustomers(container) {
                     <div style="display:flex;gap:8px;margin-top:14px">
                         <button class="btn btn-outline btn-sm" style="flex:1" id="edit-cust-btn">编辑</button>
                         ${!cust.is_member ? `<button class="btn btn-primary btn-sm" style="flex:1" id="open-card-btn">开卡</button>` : ''}
-                        <button class="btn btn-outline btn-sm" style="flex:1" id="recharge-btn">充值</button>
+                        ${cust.is_member && cust.card_type !== 'count' ? `<button class="btn btn-outline btn-sm" style="flex:1" id="recharge-btn">充值</button>` : ''}
                         <button class="btn btn-primary btn-sm" style="flex:1" id="consume-btn">消费</button>
                     </div>
                     <button class="btn btn-danger btn-sm" style="width:100%;margin-top:8px" id="delete-cust-btn">删除客户</button>
@@ -277,14 +287,64 @@ export function renderCustomers(container) {
     loadList();
 }
 
-// ===== 充值弹窗 =====
+// ===== 开卡/充值弹窗 =====
 async function showRechargeModal(container, cust, onSuccess, isOpenCard = false) {
+    // 加载服务列表用于次卡
+    let services = [];
+    if (isOpenCard) {
+        try { services = await api.listServices(true); } catch(e) {}
+    }
+
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
-        <div class="modal">
+        <div class="modal" style="max-width:420px">
             <div class="modal-header"><h2>${isOpenCard ? '开卡充值' : '会员充值'}</h2><span class="close">×</span></div>
-            ${isOpenCard ? '<div class="form-group"><label>会员卡类型</label><select id="r-card-type"><option>普通会员</option><option>金卡会员</option><option>钻石会员</option></select></div>' : ''}
+
+            ${isOpenCard ? `
+            <!-- 卡片类型选择 -->
+            <div class="form-group">
+                <label>卡片类型</label>
+                <div style="display:flex;gap:10px;margin-bottom:10px">
+                    <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px;border:2px solid var(--primary);border-radius:8px;cursor:pointer" id="card-type-value">
+                        <input type="radio" name="card-type" value="stored" checked style="accent-color:var(--primary)"> 💰 储值卡
+                    </label>
+                    <label style="flex:1;display:flex;align-items:center;gap:6px;padding:10px;border:2px solid var(--border);border-radius:8px;cursor:pointer" id="card-type-count">
+                        <input type="radio" name="card-type" value="count" style="accent-color:var(--primary)"> 🔢 次卡
+                    </label>
+                </div>
+            </div>
+
+            <!-- 储值卡区域 -->
+            <div id="stored-card-section">
+                <div class="form-group"><label>充值金额</label><input type="number" id="r-amount" value="500" min="1" step="1"></div>
+                <div class="form-group"><label>赠送金额</label><input type="number" id="r-bonus" value="100" min="0" step="1"></div>
+                <div style="display:flex;gap:8px;margin-bottom:14px">
+                    <button class="btn btn-outline btn-sm" style="flex:1" data-preset="500,100">充500送100</button>
+                    <button class="btn btn-outline btn-sm" style="flex:1" data-preset="1000,300">充1000送300</button>
+                    <button class="btn btn-outline btn-sm" style="flex:1" data-preset="2000,800">充2000送800</button>
+                </div>
+            </div>
+
+            <!-- 次卡区域 -->
+            <div id="count-card-section" style="display:none">
+                <div class="form-group">
+                    <label>服务项目</label>
+                    <select id="r-count-service">
+                        ${services.map(s => `<option value="${s.id}" data-name="${s.name}" data-price="${s.price}">${s.name} - ¥${s.price}/次</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>购买次数</label>
+                    <input type="number" id="r-count-times" value="10" min="1" step="1">
+                </div>
+                <div style="padding:10px;background:#fafafa;border-radius:8px;margin-bottom:10px;font-size:13px;text-align:center">
+                    总价：<b style="font-size:18px;color:var(--primary)" id="r-count-total">¥1280</b>
+                </div>
+            </div>
+
+            <div class="form-group"><label>会员等级</label><select id="r-card-type"><option>普通会员</option><option>金卡会员</option><option>钻石会员</option></select></div>
+            ` : `
             <div class="form-group"><label>充值金额</label><input type="number" id="r-amount" value="500" min="1" step="1"></div>
             <div class="form-group"><label>赠送金额</label><input type="number" id="r-bonus" value="100" min="0" step="1"></div>
             <div style="display:flex;gap:8px;margin-bottom:14px">
@@ -292,6 +352,8 @@ async function showRechargeModal(container, cust, onSuccess, isOpenCard = false)
                 <button class="btn btn-outline btn-sm" style="flex:1" data-preset="1000,300">充1000送300</button>
                 <button class="btn btn-outline btn-sm" style="flex:1" data-preset="2000,800">充2000送800</button>
             </div>
+            `}
+
             <div class="form-group"><label>支付方式</label><select id="r-pay"><option>现金</option><option>微信</option><option>支付宝</option><option>银行卡</option></select></div>
             <button class="btn btn-primary btn-block" id="r-submit">确认充值</button>
         </div>
@@ -302,6 +364,38 @@ async function showRechargeModal(container, cust, onSuccess, isOpenCard = false)
     overlay.querySelector('.close').addEventListener('click', close);
     overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
+    // 储值卡/次卡切换
+    if (isOpenCard) {
+        const storedSection = overlay.querySelector('#stored-card-section');
+        const countSection = overlay.querySelector('#count-card-section');
+        const storedLabel = overlay.querySelector('#card-type-value');
+        const countLabel = overlay.querySelector('#card-type-count');
+
+        overlay.querySelectorAll('input[name="card-type"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                const isStored = radio.value === 'stored';
+                storedSection.style.display = isStored ? 'block' : 'none';
+                countSection.style.display = isStored ? 'none' : 'block';
+                storedLabel.style.borderColor = isStored ? 'var(--primary)' : 'var(--border)';
+                countLabel.style.borderColor = isStored ? 'var(--border)' : 'var(--primary)';
+            });
+        });
+
+        // 次卡价格实时计算
+        const countSvc = overlay.querySelector('#r-count-service');
+        const countTimes = overlay.querySelector('#r-count-times');
+        const countTotal = overlay.querySelector('#r-count-total');
+        function updateCountTotal() {
+            const price = parseFloat(countSvc.selectedOptions[0]?.dataset.price) || 0;
+            const times = parseInt(countTimes.value) || 0;
+            countTotal.textContent = `¥${(price * times).toFixed(0)}`;
+        }
+        countSvc.addEventListener('change', updateCountTotal);
+        countTimes.addEventListener('input', updateCountTotal);
+        updateCountTotal();
+    }
+
+    // 快速预设
     overlay.querySelectorAll('[data-preset]').forEach(btn => {
         btn.addEventListener('click', () => {
             const [amount, bonus] = btn.dataset.preset.split(',');
@@ -311,22 +405,64 @@ async function showRechargeModal(container, cust, onSuccess, isOpenCard = false)
     });
 
     overlay.querySelector('#r-submit').addEventListener('click', async () => {
-        const data = {
-            customer_id: cust.id,
-            amount: parseFloat(overlay.querySelector('#r-amount').value) || 0,
-            bonus: parseFloat(overlay.querySelector('#r-bonus').value) || 0,
-            pay_method: overlay.querySelector('#r-pay').value,
-        };
-        if (data.amount <= 0) { toast('请输入充值金额'); return; }
-        try {
-            const res = await api.recharge(cust.id, data);
-            if (isOpenCard && overlay.querySelector('#r-card-type')) {
-                await api.updateCustomer(cust.id, { is_member: 1, member_card_type: overlay.querySelector('#r-card-type').value });
-            }
-            toast(res.msg || '充值成功');
-            close();
-            onSuccess(cust.id);
-        } catch (e) { toast('操作失败'); }
+        // 判断是储值卡还是次卡
+        const cardType = isOpenCard ? (overlay.querySelector('input[name="card-type"]:checked')?.value || 'stored') : 'stored';
+
+        if (cardType === 'count') {
+            // 次卡
+            const svcSel = overlay.querySelector('#r-count-service');
+            const svcName = svcSel.selectedOptions[0]?.dataset.name || '';
+            const svcPrice = parseFloat(svcSel.selectedOptions[0]?.dataset.price) || 0;
+            const times = parseInt(overlay.querySelector('#r-count-times').value) || 0;
+            const totalPaid = svcPrice * times;
+
+            if (times <= 0) { toast('请输入次数'); return; }
+
+            try {
+                const res = await api.recharge(cust.id, {
+                    amount: totalPaid,
+                    bonus: 0,
+                    pay_method: overlay.querySelector('#r-pay').value,
+                    card_type: 'count',
+                    count_service_name: svcName,
+                    count_service_price: svcPrice,
+                    count_times: times,
+                    count_remaining: times,
+                });
+                await api.updateCustomer(cust.id, {
+                    is_member: 1,
+                    card_type: 'count',
+                    count_service_name: svcName,
+                    count_service_price: svcPrice,
+                    count_times: times,
+                    count_remaining: times,
+                    member_card_type: overlay.querySelector('#r-card-type').value,
+                });
+                toast(`次卡开通成功！${svcName} ×${times}次`);
+                close();
+                onSuccess(cust.id);
+            } catch(e) { toast('操作失败'); }
+        } else {
+            // 储值卡
+            const amount = parseFloat(overlay.querySelector('#r-amount').value) || 0;
+            if (amount <= 0) { toast('请输入充值金额'); return; }
+            const data = {
+                customer_id: cust.id,
+                amount: amount,
+                bonus: parseFloat(overlay.querySelector('#r-bonus').value) || 0,
+                pay_method: overlay.querySelector('#r-pay').value,
+                card_type: 'stored',
+            };
+            try {
+                await api.recharge(cust.id, data);
+                if (isOpenCard) {
+                    await api.updateCustomer(cust.id, { is_member: 1, card_type: 'stored', member_card_type: overlay.querySelector('#r-card-type').value });
+                }
+                toast('充值成功');
+                close();
+                onSuccess(cust.id);
+            } catch(e) { toast('操作失败'); }
+        }
     });
 }
 
@@ -342,12 +478,21 @@ async function showConsumeModal(container, cust, onSuccess) {
         overlay.innerHTML = `
             <div class="modal">
                 <div class="modal-header"><h2>记录消费</h2><span class="close">×</span></div>
-                <div style="font-size:12px;color:var(--text-light);margin-bottom:12px">客户：${cust.name} | 余额：¥${(cust.balance||0).toFixed(0)}</div>
+                <div style="font-size:12px;color:var(--text-light);margin-bottom:12px">
+                    客户：${cust.name}
+                    ${cust.card_type === 'count' ? ` | 次卡：${cust.count_service_name || ''} 剩余 ${cust.count_remaining || 0}/${cust.count_times || 0} 次` : ` | 余额：¥${(cust.balance||0).toFixed(0)}`}
+                </div>
                 <div class="form-group"><label>服务项目</label><select id="c-service">${services.map(s => `<option value="${s.id}" data-price="${s.price}" data-name="${s.name}">${s.name} - ¥${s.price}</option>`).join('')}</select></div>
                 <div class="form-group"><label>服务员工</label><select id="c-tech">${technicians.map(t => `<option value="${t.id}" data-name="${t.name}">${t.name} - ${t.title}</option>`).join('')}</select></div>
                 <div class="form-group"><label>自定义金额（留空使用服务价格）</label><input type="number" id="c-price" placeholder="自动填充服务价格" step="1"></div>
+                ${cust.card_type === 'count' ? `
+                <div class="form-group">
+                    <label><input type="checkbox" id="c-use-count" checked style="width:auto;margin-right:6px"> 使用次卡抵扣（扣1次）</label>
+                </div>
+                ` : `
                 <div class="form-group"><label>支付方式</label><select id="c-pay"><option value="cash">现金/微信</option><option value="card">会员卡扣款</option><option value="mixed">混合支付</option></select></div>
                 <div class="form-group" id="card-deduct-group" style="display:none"><label>卡扣金额</label><input type="number" id="c-card-deduct" placeholder="从余额扣除" step="1"></div>
+                `}
                 <div class="form-group"><label>备注</label><input type="text" id="c-remark" placeholder="款式、颜色等"></div>
                 <div class="form-group">
                     <label>款式成品照</label>
@@ -405,14 +550,29 @@ async function showConsumeModal(container, cust, onSuccess) {
         overlay.querySelector('#c-submit').addEventListener('click', async () => {
             const svcOpt = svcSelect.selectedOptions[0];
             const techOpt = overlay.querySelector('#c-tech').selectedOptions[0];
-            const payMethod = overlay.querySelector('#c-pay').value;
             const price = parseFloat(overlay.querySelector('#c-price').value) || parseFloat(svcOpt.dataset.price);
-            const cardDeduct = payMethod === 'card' ? price : (payMethod === 'mixed' ? parseFloat(overlay.querySelector('#c-card-deduct').value) || 0 : 0);
-            const cashPay = price - cardDeduct;
 
-            if (cardDeduct > (cust.balance || 0)) {
-                toast(`余额不足，当前余额 ¥${(cust.balance||0).toFixed(0)}`);
-                return;
+            // 次卡客户
+            const useCount = cust.card_type === 'count' && overlay.querySelector('#c-use-count')?.checked;
+
+            let payMethod, cardDeduct, cashPay;
+            if (useCount) {
+                if ((cust.count_remaining || 0) <= 0) {
+                    toast('次卡已用完，请选择其他支付方式');
+                    return;
+                }
+                payMethod = 'count';
+                cardDeduct = 0;
+                cashPay = 0;
+            } else {
+                payMethod = cust.card_type === 'count' ? 'cash' : (overlay.querySelector('#c-pay')?.value || 'cash');
+                cardDeduct = payMethod === 'card' ? price : (payMethod === 'mixed' ? parseFloat(overlay.querySelector('#c-card-deduct')?.value) || 0 : 0);
+                cashPay = price - cardDeduct;
+
+                if (cardDeduct > (cust.balance || 0)) {
+                    toast(`余额不足，当前余额 ¥${(cust.balance||0).toFixed(0)}`);
+                    return;
+                }
             }
 
             const data = {
@@ -429,11 +589,18 @@ async function showConsumeModal(container, cust, onSuccess) {
                 cash_pay: cashPay,
                 remark: overlay.querySelector('#c-remark').value.trim(),
                 photo: photoUrlInput.value,
+                use_count: useCount,
             };
 
             try {
                 await api.recordConsumption(cust.id, data);
-                toast('消费记录已保存');
+                if (useCount) {
+                    // 次卡扣次数
+                    const updatedCust = { ...cust };
+                    updatedCust.count_remaining = (cust.count_remaining || 0) - 1;
+                    await api.updateCustomer(cust.id, { count_remaining: updatedCust.count_remaining });
+                }
+                toast(useCount ? '次卡消费成功（扣1次）' : '消费记录已保存');
                 close();
                 onSuccess(cust.id);
             } catch (e) { toast('操作失败'); }
