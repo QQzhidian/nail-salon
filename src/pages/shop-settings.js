@@ -304,3 +304,17 @@ function bindMapNav(container, shop) {
     }
 }
 
+/** 更新备份信息提示 */
+function updateBackupInfo(container) {
+    const infoEl = container.querySelector('#backup-info');
+    if (!infoEl) return;
+    const db = JSON.parse(localStorage.getItem('nail_salon_db') || '{}');
+    const customers = db.customers?.length || 0;
+    const appointments = db.appointments?.length || 0;
+    const records = db.consumption_records?.length || 0;
+    const total = customers + appointments + records;
+    infoEl.textContent = total > 0
+        ? `当前数据：${customers} 位客户 · ${appointments} 条预约 · ${records} 条消费记录`
+        : '暂无数据，快去添加客户吧';
+}
+
