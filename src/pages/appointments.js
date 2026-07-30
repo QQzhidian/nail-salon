@@ -42,12 +42,12 @@ export function renderAppointments(container) {
             if (currentDate) params.date = currentDate;
             const res = await api.listAppointments(params);
             
-            if (res.list.length === 0) {
+            if (res.length === 0) {
                 listEl.innerHTML = `<div class="empty"><div class="icon">📭</div><div class="text">暂无预约</div></div>`;
                 return;
             }
             
-            listEl.innerHTML = res.list.map(a => `
+            listEl.innerHTML = res.map(a => `
                 <div class="card" data-id="${a.id}">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
                         <div>
@@ -171,7 +171,7 @@ async function showAddModal(container, onSuccess) {
                 <div class="form-group">
                     <label>美甲师</label>
                     <select id="m-tech">
-                        ${technicians.map(t => `<option value="${t.id}">${t.name} - ${t.title}</option>`).join('')}
+                        ${technicians.map(t => `<option value="${t.id}">${t.name} - ${t.position || ''}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group">
@@ -196,14 +196,20 @@ async function showAddModal(container, onSuccess) {
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
         
         overlay.querySelector('#m-submit').addEventListener('click', async () => {
+            const serviceId = parseInt(overlay.querySelector('#m-service').value);
+            const techId = parseInt(overlay.querySelector('#m-tech').value);
+            const serviceOpt = overlay.querySelector('#m-service').selectedOptions[0];
+            const techOpt = overlay.querySelector('#m-tech').selectedOptions[0];
             const data = {
                 customer_name: overlay.querySelector('#m-name').value.trim(),
                 customer_phone: overlay.querySelector('#m-phone').value.trim(),
-                service_id: parseInt(overlay.querySelector('#m-service').value),
-                technician_id: parseInt(overlay.querySelector('#m-tech').value),
+                service_id: serviceId,
+                service_name: serviceOpt ? serviceOpt.text.split(' - ')[0] : '',
+                technician_id: techId,
+                technician_name: techOpt ? techOpt.text.split(' - ')[0] : '',
                 appointment_date: overlay.querySelector('#m-date').value,
                 appointment_time: overlay.querySelector('#m-time').value,
-                remark: overlay.querySelector('#m-remark').value.trim(),
+                notes: overlay.querySelector('#m-remark').value.trim(),
             };
             if (!data.customer_name || !data.customer_phone) { toast('请填写姓名和手机号'); return; }
             if (!/^1\d{10}$/.test(data.customer_phone)) { toast('手机号格式不正确'); return; }
