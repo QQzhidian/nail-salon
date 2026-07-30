@@ -4,7 +4,7 @@
 import { api } from '../api.js';
 import { toast } from '../auth.js';
 
-export function renderBusinessCard(container) {
+export async function renderBusinessCard(container) {
     
     container.innerHTML = `
         <div class="page">

@@ -4,7 +4,7 @@
 import { api } from '../api.js';
 import { toast, confirm } from '../auth.js';
 
-export function renderArtworks(container) {
+export async function renderArtworks(container) {
     
     container.innerHTML = `
         <div class="page">

@@ -4,7 +4,7 @@
 import { api } from '../api.js';
 import { toast } from '../auth.js';
 
-export function renderShopSettings(container) {
+export async function renderShopSettings(container) {
     
     container.innerHTML = `
         <div class="page">
