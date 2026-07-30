@@ -20,6 +20,8 @@ function initDB() {
             name: '支点·美甲美睫妆造（板桥店）',
             phone: '138-0000-0000',
             address: '云南省曲靖市罗平县Y012',
+            lat: '24.8840',
+            lng: '104.3040',
             logo: '',
             description: '专注精致美甲，用专业成就美丽',
             business_hours: '10:00 - 22:00',

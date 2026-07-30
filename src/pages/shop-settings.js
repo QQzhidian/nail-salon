@@ -48,6 +48,23 @@ export async function renderShopSettings(container) {
                     <label>店铺地址</label>
                     <textarea id="shop-address" placeholder="详细地址">${shop.address || ''}</textarea>
                 </div>
+
+                <!-- 定位地图 -->
+                <div class="form-group">
+                    <label>📍 店铺位置</label>
+                    <div style="display:flex;gap:10px;align-items:stretch">
+                        <div class="form-group" style="flex:1;margin:0"><input type="text" id="shop-lat" placeholder="纬度" value="${shop.lat || ''}" style="font-size:13px"></div>
+                        <div class="form-group" style="flex:1;margin:0"><input type="text" id="shop-lng" placeholder="经度" value="${shop.lng || ''}" style="font-size:13px"></div>
+                    </div>
+                    <div id="shop-map" style="width:100%;height:180px;border-radius:10px;overflow:hidden;margin-top:8px;background:#e8e4df;display:flex;align-items:center;justify-content:center;color:var(--text-lighter);font-size:13px">
+                        ${shop.lat && shop.lng ? renderStaticMap(shop) : '输入经纬度后显示地图'}
+                    </div>
+                    <div style="display:flex;gap:8px;margin-top:8px">
+                        <button class="btn btn-sm" style="flex:1;background:#07c160;color:#fff;border:none" id="nav-tencent">🗺️ 腾讯地图导航</button>
+                        <button class="btn btn-sm" style="flex:1;background:#1677ff;color:#fff;border:none" id="nav-amap">🗺️ 高德地图导航</button>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label>店铺简介</label>
                     <textarea id="shop-intro" placeholder="一句话介绍店铺">${shop.intro || ''}</textarea>
@@ -129,6 +146,8 @@ export async function renderShopSettings(container) {
                 phone: container.querySelector('#shop-phone').value.trim(),
                 business_hours: container.querySelector('#shop-hours').value.trim(),
                 address: container.querySelector('#shop-address').value.trim(),
+                lat: container.querySelector('#shop-lat').value.trim(),
+                lng: container.querySelector('#shop-lng').value.trim(),
                 intro: container.querySelector('#shop-intro').value.trim(),
                 announcement: container.querySelector('#shop-announce').value.trim(),
                 logo: logoUrl,
@@ -137,8 +156,16 @@ export async function renderShopSettings(container) {
             try {
                 await api.updateShop(data);
                 toast('保存成功');
+                // 保存后刷新地图
+                const mapEl = container.querySelector('#shop-map');
+                if (mapEl && data.lat && data.lng) {
+                    mapEl.innerHTML = renderStaticMap(data);
+                }
             } catch(e) { toast('保存失败'); }
         });
+
+        // ===== 地图导航 =====
+        bindMapNav(container, shop);
 
         // ===== 导出备份 =====
         updateBackupInfo(container);
@@ -232,16 +259,48 @@ export async function renderShopSettings(container) {
     }
 }
 
-/** 更新备份信息提示 */
-function updateBackupInfo(container) {
-    const infoEl = container.querySelector('#backup-info');
-    if (!infoEl) return;
-    const db = JSON.parse(localStorage.getItem('nail_salon_db') || '{}');
-    const customers = db.customers?.length || 0;
-    const appointments = db.appointments?.length || 0;
-    const records = db.consumption_records?.length || 0;
-    const total = customers + appointments + records;
-    infoEl.textContent = total > 0
-        ? `当前数据：${customers} 位客户 · ${appointments} 条预约 · ${records} 条消费记录`
-        : '暂无数据，快去添加客户吧';
+/** 渲染静态地图 */
+function renderStaticMap(shop) {
+    const lat = parseFloat(shop.lat);
+    const lng = parseFloat(shop.lng);
+    if (isNaN(lat) || isNaN(lng)) return '经纬度格式错误';
+    // 腾讯地图静态图 API
+    const key = 'QJTBZ-GAV35-GM3IT-QZAHJ-WHXDJ-63B24';
+    const url = `https://apis.map.qq.com/ws/staticmap/v2/?key=${key}&center=${lat},${lng}&zoom=16&size=*180&markers=color:red|${lat},${lng}&maptype=roadmap`;
+    return `<img src="${url}" style="width:100%;height:100%;object-fit:cover" alt="店铺位置">`;
 }
+
+/** 地图导航按钮绑定 */
+function bindMapNav(container, shop) {
+    const lat = parseFloat(shop.lat || container.querySelector('#shop-lat')?.value);
+    const lng = parseFloat(shop.lng || container.querySelector('#shop-lng')?.value);
+    const name = shop.name || container.querySelector('#shop-name')?.value || '支点美甲';
+    const addr = shop.address || container.querySelector('#shop-address')?.value || '';
+
+    const tencentBtn = container.querySelector('#nav-tencent');
+    const amapBtn = container.querySelector('#nav-amap');
+
+    if (tencentBtn) {
+        tencentBtn.addEventListener('click', () => {
+            if (isNaN(lat) || isNaN(lng)) {
+                // 无经纬度时用地址搜索
+                const q = encodeURIComponent(`${name} ${addr}`);
+                window.open(`https://apis.map.qq.com/uri/v1/search?keyword=${q}&referer=nailsalon`, '_blank');
+            } else {
+                window.open(`https://apis.map.qq.com/uri/v1/marker?marker=coord:${lat},${lng};title:${encodeURIComponent(name)}&referer=nailsalon`, '_blank');
+            }
+        });
+    }
+
+    if (amapBtn) {
+        amapBtn.addEventListener('click', () => {
+            if (isNaN(lat) || isNaN(lng)) {
+                const q = encodeURIComponent(`${name} ${addr}`);
+                window.open(`https://uri.amap.com/search?keyword=${q}`, '_blank');
+            } else {
+                window.open(`https://uri.amap.com/marker?position=${lng},${lat}&name=${encodeURIComponent(name)}`, '_blank');
+            }
+        });
+    }
+}
+
