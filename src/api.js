@@ -17,9 +17,9 @@ function saveDB(db) {
 function initDB() {
     const db = {
         shop: {
-            name: '支点美甲',
+            name: '支点·美甲美睫妆造（板桥店）',
             phone: '138-0000-0000',
-            address: '请输入店铺地址',
+            address: '云南省曲靖市罗平县Y012',
             logo: '',
             description: '专注精致美甲，用专业成就美丽',
             business_hours: '10:00 - 22:00',

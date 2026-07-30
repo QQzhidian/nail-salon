@@ -155,7 +155,7 @@ export async function renderShopSettings(container) {
             const a = document.createElement('a');
             a.href = url;
             const dateStr = new Date().toISOString().slice(0, 10);
-            a.download = `支点美甲_备份_${dateStr}.json`;
+            a.download = `支点美甲美睫妆造板桥店_备份_${dateStr}.json`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
