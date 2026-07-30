@@ -661,13 +661,25 @@ async function showAddModal(container, onSuccess) {
     overlay.innerHTML = `
         <div class="modal">
             <div class="modal-header"><h2>新增客户</h2><span class="close">×</span></div>
-            <div class="form-group"><label>姓名 *</label><input type="text" id="a-name" placeholder="客户姓名"></div>
-            <div class="form-group"><label>手机号 *</label><input type="tel" id="a-phone" placeholder="手机号" maxlength="11"></div>
-            <div class="form-group"><label>性别</label><select id="a-gender"><option value="">未设置</option><option>女</option><option>男</option></select></div>
-            <div class="form-group"><label>生日</label><input type="date" id="a-birthday"></div>
-            <div class="form-group"><label>备注</label><input type="text" id="a-remark" placeholder="备注信息"></div>
-            <div class="form-group"><label><input type="checkbox" id="a-member" style="width:auto;margin-right:6px"> 同时开会员卡</label></div>
-            <button class="btn btn-primary btn-block" id="a-submit">确认添加</button>
+            <div class="form-group"><label>姓名 *</label><input type="text" id="a-name" placeholder="客户姓名" style="padding:14px;font-size:16px"></div>
+            <div class="form-group"><label>手机号 <span style="font-weight:400;color:var(--text-light)">（可选）</span></label><input type="tel" id="a-phone" placeholder="手机号" maxlength="11" style="padding:14px;font-size:16px"></div>
+
+            <div class="form-group">
+                <label>生日 <span style="font-weight:400;color:var(--text-light)">（可选）</span></label>
+                <div style="display:flex;gap:8px">
+                    <select id="a-birth-month" style="flex:1;padding:12px;border:1.5px solid var(--border);border-radius:12px;background:#fff;font-size:15px">
+                        <option value="">月</option>
+                        ${Array.from({length:12},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}月</option>`).join('')}
+                    </select>
+                    <select id="a-birth-day" style="flex:1;padding:12px;border:1.5px solid var(--border);border-radius:12px;background:#fff;font-size:15px">
+                        <option value="">日</option>
+                        ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}">${i+1}日</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group"><label>备注 <span style="font-weight:400;color:var(--text-light)">（可选）</span></label><input type="text" id="a-remark" placeholder="备注信息" style="padding:14px;font-size:15px"></div>
+            <button class="btn btn-primary btn-block" id="a-submit" style="padding:16px;font-size:16px;font-weight:700;border-radius:14px">确认添加</button>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -678,16 +690,21 @@ async function showAddModal(container, onSuccess) {
     overlay.querySelector('#a-submit').addEventListener('click', async () => {
         const name = overlay.querySelector('#a-name').value.trim();
         const phone = overlay.querySelector('#a-phone').value.trim();
-        if (!name || !phone) { toast('请填写姓名和手机号'); return; }
-        if (!/^1\d{10}$/.test(phone)) { toast('手机号格式不正确'); return; }
+        if (!name) { toast('请填写客户姓名'); return; }
+        if (phone && !/^1\d{10}$/.test(phone)) { toast('手机号格式不正确'); return; }
+
+        const month = overlay.querySelector('#a-birth-month').value;
+        const day = overlay.querySelector('#a-birth-day').value;
+        const birthday = (month && day) ? `2020-${month}-${day}` : '';
 
         try {
             const data = {
-                name, phone,
-                gender: overlay.querySelector('#a-gender').value,
-                birthday: overlay.querySelector('#a-birthday').value,
+                name,
+                phone: phone || '',
+                gender: '',
+                birthday,
                 remark: overlay.querySelector('#a-remark').value.trim(),
-                is_member: overlay.querySelector('#a-member').checked,
+                is_member: false,
             };
             await api.createCustomer(data);
             toast('添加成功');
@@ -700,14 +717,31 @@ async function showAddModal(container, onSuccess) {
 async function showEditModal(container, cust, onSuccess) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
+    const birthday = cust.birthday || '';
+    const [_, bm = '', bd = ''] = birthday.match(/(\d{2})-(\d{2})$/) || [];
+
     overlay.innerHTML = `
         <div class="modal">
             <div class="modal-header"><h2>编辑客户</h2><span class="close">×</span></div>
-            <div class="form-group"><label>姓名</label><input type="text" id="e-name" value="${cust.name}"></div>
-            <div class="form-group"><label>手机号</label><input type="tel" id="e-phone" value="${cust.phone}" maxlength="11"></div>
-            <div class="form-group"><label>生日</label><input type="date" id="e-birthday" value="${cust.birthday || ''}"></div>
-            <div class="form-group"><label>备注</label><input type="text" id="e-remark" value="${cust.remark || ''}"></div>
-            <button class="btn btn-primary btn-block" id="e-submit">保存</button>
+            <div class="form-group"><label>姓名</label><input type="text" id="e-name" value="${cust.name}" style="padding:14px;font-size:16px"></div>
+            <div class="form-group"><label>手机号 <span style="font-weight:400;color:var(--text-light)">（可选）</span></label><input type="tel" id="e-phone" value="${cust.phone || ''}" maxlength="11" style="padding:14px;font-size:16px"></div>
+
+            <div class="form-group">
+                <label>生日 <span style="font-weight:400;color:var(--text-light)">（可选）</span></label>
+                <div style="display:flex;gap:8px">
+                    <select id="e-birth-month" style="flex:1;padding:12px;border:1.5px solid var(--border);border-radius:12px;background:#fff;font-size:15px">
+                        <option value="">月</option>
+                        ${Array.from({length:12},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${bm===String(i+1).padStart(2,'0')?'selected':''}>${i+1}月</option>`).join('')}
+                    </select>
+                    <select id="e-birth-day" style="flex:1;padding:12px;border:1.5px solid var(--border);border-radius:12px;background:#fff;font-size:15px">
+                        <option value="">日</option>
+                        ${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}" ${bd===String(i+1).padStart(2,'0')?'selected':''}>${i+1}日</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group"><label>备注 <span style="font-weight:400;color:var(--text-light)">（可选）</span></label><input type="text" id="e-remark" value="${cust.remark || ''}" style="padding:14px;font-size:15px"></div>
+            <button class="btn btn-primary btn-block" id="e-submit" style="padding:16px;font-size:16px;font-weight:700;border-radius:14px">保存</button>
         </div>
     `;
     document.body.appendChild(overlay);
@@ -716,10 +750,14 @@ async function showEditModal(container, cust, onSuccess) {
     overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
     overlay.querySelector('#e-submit').addEventListener('click', async () => {
+        const phone = overlay.querySelector('#e-phone').value.trim();
+        if (phone && !/^1\d{10}$/.test(phone)) { toast('手机号格式不正确'); return; }
+        const month = overlay.querySelector('#e-birth-month').value;
+        const day = overlay.querySelector('#e-birth-day').value;
         const data = {
             name: overlay.querySelector('#e-name').value.trim(),
-            phone: overlay.querySelector('#e-phone').value.trim(),
-            birthday: overlay.querySelector('#e-birthday').value,
+            phone: phone || '',
+            birthday: (month && day) ? `2020-${month}-${day}` : '',
             remark: overlay.querySelector('#e-remark').value.trim(),
         };
         try {
