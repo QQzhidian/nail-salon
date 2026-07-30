@@ -114,13 +114,13 @@ async function showEditModal(container, tech, onSuccess) {
                     <option value="commission_only" ${(tech && tech.salary_type === 'commission_only') ? 'selected' : ''}>纯提成（无底薪）</option>
                 </select>
             </div>
-            <div id="t-base-salary-group" class="form-group">
+            <div id="t-base-salary-group" class="form-group" style="margin-bottom:16px">
                 <label>底薪（元/月）</label>
-                <input type="number" id="t-base-salary" value="${tech?.base_salary || 0}" placeholder="如：5000，纯提成模式可填 0" step="100">
+                <input type="number" id="t-base-salary" value="${tech?.base_salary ?? 0}" placeholder="如：5000，纯提成模式可填 0" step="100" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:14px;font-size:14px;background:#fbf8f5;color:var(--text);display:block">
             </div>
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom:16px">
                 <label>提成比例（%）</label>
-                <input type="number" id="t-commission" value="${tech?.commission_rate || 30}" placeholder="如：30（三成）或 50（五五分成）" step="1" min="0" max="100">
+                <input type="number" id="t-commission" value="${tech?.commission_rate ?? 30}" placeholder="如：30（三成）或 50（五五分成）" step="1" min="0" max="100" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:14px;font-size:14px;background:#fbf8f5;color:var(--text);display:block">
             </div>
             <div class="form-group">
                 <label>简介</label>
