@@ -37,7 +37,7 @@ export async function renderTechnicians(container) {
                         </div>
                         <div style="flex:1">
                             <div style="font-size:15px;font-weight:600">${t.name} <span style="font-size:12px;color:var(--text-light);font-weight:400">${t.title || t.position || ''}</span></div>
-                            <div style="font-size:12px;color:var(--text-light);margin-top:2px">💰 ${t.salary_type === 'commission_only' ? `纯提成 ${t.commission_rate}%` : `底薪${t.base_salary || 0} + 提成${t.commission_rate || 0}%`}</div>
+                            <div style="font-size:12px;color:var(--text-light);margin-top:2px">💰 ${(t.salary_type === 'commission_only') ? `纯提成 ${t.commission_rate || 0}%` : `底薪${t.base_salary || 0} + 提成${t.commission_rate || 0}%`}</div>
                             <div style="font-size:11px;color:var(--text-lighter);margin-top:2px">${t.intro || '暂无介绍'}</div>
                         </div>
                         <span class="tag tag-${t.is_active ? 'active' : 'inactive'}">${t.is_active ? '在职' : '离职'}</span>
@@ -105,7 +105,7 @@ async function showEditModal(container, tech, onSuccess) {
             </div>
             <div class="form-group">
                 <label>职称</label>
-                <input type="text" id="t-title" value="${tech?.title || ''}" placeholder="如：资深美甲师">
+                <input type="text" id="t-title" value="${tech?.title || tech?.position || ''}" placeholder="如：资深美甲师">
             </div>
             <div class="form-group">
                 <label>薪资模式</label>
