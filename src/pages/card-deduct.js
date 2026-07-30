@@ -41,6 +41,13 @@ export function renderCardDeduct(container) {
                     <label>备注</label>
                     <input type="text" id="deduct-remark" placeholder="可选：如做的款式、颜色等" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:#fafafa;font-size:14px">
                 </div>
+                <div class="form-group">
+                    <label>款式照片</label>
+                    <div id="deduct-photo-area" style="width:100%;min-height:60px;border:2px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:8px">
+                        <span style="color:var(--text-lighter);font-size:13px">📸 点击上传做完的款式照片</span>
+                    </div>
+                    <input type="hidden" id="deduct-photo-url" value="">
+                </div>
                 <button class="btn btn-primary btn-block" id="deduct-submit">确认扣卡</button>
             </div>
         </div>
@@ -87,6 +94,23 @@ export function renderCardDeduct(container) {
         const price = parseFloat(sel.options[sel.selectedIndex].dataset.price) || 0;
         if (price > 0) container.querySelector('#deduct-amount').value = price;
     });
+
+    // 款式照片上传
+    container.querySelector('#deduct-photo-area').addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.addEventListener('change', async () => {
+            const file = input.files[0];
+            if (!file) return;
+            try {
+                const res = await api.upload(file);
+                container.querySelector('#deduct-photo-url').value = res.url;
+                container.querySelector('#deduct-photo-area').innerHTML = `<img src="${res.url}" style="max-width:100%;max-height:200px;border-radius:6px">`;
+            } catch(e) { toast('上传失败'); }
+        });
+        input.click();
+    });
     
     container.querySelector('#deduct-submit').addEventListener('click', async () => {
         const custId = parseInt(container.querySelector('#member-select').value);
@@ -94,6 +118,7 @@ export function renderCardDeduct(container) {
         const techSel = container.querySelector('#tech-select');
         const amount = parseFloat(container.querySelector('#deduct-amount').value) || 0;
         const remark = container.querySelector('#deduct-remark').value.trim();
+        const photoUrl = container.querySelector('#deduct-photo-url').value;
         if (!custId) { toast('请选择会员'); return; }
         if (amount <= 0) { toast('请输入扣卡金额'); return; }
         const member = members.find(m => m.id === custId);
@@ -106,7 +131,7 @@ export function renderCardDeduct(container) {
                 service_id: parseInt(svcSel.value) || 0, service_name: svcSel.options[svcSel.selectedIndex].dataset.name || '',
                 service_price: amount,
                 technician_id: parseInt(techSel.value) || 0, technician_name: techSel.options[techSel.selectedIndex].dataset.name || '',
-                pay_method: 'card', card_deduct: amount, cash_pay: 0, remark,
+                pay_method: 'card', card_deduct: amount, cash_pay: 0, remark, photo: photoUrl,
             });
             toast('扣卡成功');
             // 刷新数据

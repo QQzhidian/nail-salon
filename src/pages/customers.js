@@ -134,8 +134,21 @@ export function renderCustomers(container) {
                     <button class="btn btn-danger btn-sm" style="width:100%;margin-top:8px" id="delete-cust-btn">删除客户</button>
                 </div>
 
+                <!-- 心仪款式照片 -->
+                <div class="section-title" style="margin-top:16px">💖 心仪款式</div>
+                <div id="wish-photos" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+                    ${(cust.wish_photos || []).map((p, i) => `
+                        <div style="position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
+                            <img src="${p.url}" style="width:100%;height:100%;object-fit:cover" onclick="this.requestFullscreen?.()">
+                            <span style="position:absolute;top:2px;right:2px;width:18px;height:18px;background:rgba(0,0,0,0.6);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:pointer"
+                                  data-del-wish="${i}">×</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <button class="btn btn-outline btn-sm" id="add-wish-photo-btn" style="width:100%">+ 添加心仪款式照片</button>
+
                 <!-- 消费记录 -->
-                <div class="section-title">消费记录</div>
+                <div class="section-title" style="margin-top:16px">消费记录</div>
                 ${cust.consumption_records && cust.consumption_records.length > 0 ? cust.consumption_records.map(r => `
                     <div class="card" style="padding:12px 14px;position:relative">
                         <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -148,8 +161,13 @@ export function renderCustomers(container) {
                                 <div style="font-size:10px;color:var(--text-lighter)">${(r.payment_method || r.pay_method) === 'card' ? '会员卡' : (r.payment_method || r.pay_method) === 'mixed' ? '混合' : '现金'}</div>
                             </div>
                         </div>
+                        ${r.photo ? `<div style="margin-top:6px"><img src="${r.photo}" style="max-width:120px;max-height:120px;border-radius:6px;cursor:pointer;border:1px solid var(--border)" onclick="this.requestFullscreen?.()"></div>` : ''}
+                        ${r.notes ? `<div style="font-size:11px;color:var(--text-light);margin-top:4px">📝 ${r.notes}</div>` : ''}
                         <div style="font-size:10px;color:var(--text-lighter);margin-top:4px">${r.created_at || ''}</div>
-                        <button class="btn btn-danger btn-sm" style="position:absolute;right:10px;bottom:8px;font-size:10px;padding:2px 8px" data-del-record="${r.id}">删除</button>
+                        <div style="position:absolute;right:10px;bottom:8px;display:flex;gap:6px">
+                            <button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 8px" data-add-photo="${r.id}">📷</button>
+                            <button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 8px" data-del-record="${r.id}">删除</button>
+                        </div>
                     </div>
                 `).join('') : `<div class="card" style="text-align:center;padding:24px;color:var(--text-lighter)">暂无消费记录</div>`}
 
@@ -184,6 +202,63 @@ export function renderCustomers(container) {
                 loadList();
             } catch(e) { toast('删除失败'); }
         });
+
+        // 心仪照片：添加
+        container.querySelector('#add-wish-photo-btn')?.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.addEventListener('change', async () => {
+                const file = input.files[0];
+                if (!file) return;
+                try {
+                    toast('上传中...');
+                    const res = await api.upload(file);
+                    await api.addWishPhoto(cust.id, res.url);
+                    toast('已添加');
+                    reloadFn(cust.id);
+                } catch(e) { toast('上传失败'); }
+            });
+            input.click();
+        });
+
+        // 心仪照片：删除
+        container.querySelectorAll('[data-del-wish]').forEach(span => {
+            span.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (!confirm('删除这张心仪照片？')) return;
+                const idx = parseInt(span.dataset.delWish);
+                try {
+                    await api.deleteWishPhoto(cust.id, idx);
+                    toast('已删除');
+                    reloadFn(cust.id);
+                } catch(e) { toast('删除失败'); }
+            });
+        });
+
+        // 消费记录：添加成品照片
+        container.querySelectorAll('[data-add-photo]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const recordId = parseInt(btn.dataset.addPhoto);
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.addEventListener('change', async () => {
+                    const file = input.files[0];
+                    if (!file) return;
+                    try {
+                        toast('上传中...');
+                        const res = await api.upload(file);
+                        await api.updateConsumptionPhoto(recordId, res.url);
+                        toast('照片已添加');
+                        reloadFn(cust.id);
+                    } catch(e) { toast('上传失败'); }
+                });
+                input.click();
+            });
+        });
+
         // 删除消费记录
         container.querySelectorAll('[data-del-record]').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -274,6 +349,13 @@ async function showConsumeModal(container, cust, onSuccess) {
                 <div class="form-group"><label>支付方式</label><select id="c-pay"><option value="cash">现金/微信</option><option value="card">会员卡扣款</option><option value="mixed">混合支付</option></select></div>
                 <div class="form-group" id="card-deduct-group" style="display:none"><label>卡扣金额</label><input type="number" id="c-card-deduct" placeholder="从余额扣除" step="1"></div>
                 <div class="form-group"><label>备注</label><input type="text" id="c-remark" placeholder="款式、颜色等"></div>
+                <div class="form-group">
+                    <label>款式成品照</label>
+                    <div id="c-photo-area" style="width:100%;min-height:60px;border:2px dashed var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:8px">
+                        <span style="color:var(--text-lighter);font-size:13px">📸 点击上传做完的款式照片</span>
+                    </div>
+                    <input type="hidden" id="c-photo-url" value="">
+                </div>
                 <button class="btn btn-primary btn-block" id="c-submit">确认</button>
             </div>
         `;
@@ -282,6 +364,25 @@ async function showConsumeModal(container, cust, onSuccess) {
         const close = () => overlay.remove();
         overlay.querySelector('.close').addEventListener('click', close);
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+        // 款式照片上传
+        const photoArea = overlay.querySelector('#c-photo-area');
+        const photoUrlInput = overlay.querySelector('#c-photo-url');
+        photoArea.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.addEventListener('change', async () => {
+                const file = input.files[0];
+                if (!file) return;
+                try {
+                    const res = await api.upload(file);
+                    photoUrlInput.value = res.url;
+                    photoArea.innerHTML = `<img src="${res.url}" style="max-width:100%;max-height:200px;border-radius:6px">`;
+                } catch(e) { toast('上传失败'); }
+            });
+            input.click();
+        });
 
         // 服务选择自动填价格
         const svcSelect = overlay.querySelector('#c-service');
@@ -327,6 +428,7 @@ async function showConsumeModal(container, cust, onSuccess) {
                 card_deduct: cardDeduct,
                 cash_pay: cashPay,
                 remark: overlay.querySelector('#c-remark').value.trim(),
+                photo: photoUrlInput.value,
             };
 
             try {

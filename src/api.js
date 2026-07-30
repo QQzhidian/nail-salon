@@ -156,6 +156,7 @@ export const api = {
             balance: data.balance || 0,
             total_recharge: 0,
             total_consumption: 0,
+            wish_photos: [],
             created_at: new Date().toISOString(),
         };
         db.customers.push(cust);
@@ -181,6 +182,42 @@ export const api = {
         Object.assign(db.customers[idx], data);
         saveDB(db);
         return db.customers[idx];
+    },
+
+    // 客户心仪照片
+    addWishPhoto: async (custId, photoUrl) => {
+        await delay(50);
+        const db = getDB();
+        const idx = db.customers.findIndex(c => c.id === custId);
+        if (idx === -1) throw new Error('客户不存在');
+        if (!db.customers[idx].wish_photos) db.customers[idx].wish_photos = [];
+        db.customers[idx].wish_photos.push({ url: photoUrl, added_at: new Date().toISOString() });
+        saveDB(db);
+        return db.customers[idx];
+    },
+
+    deleteWishPhoto: async (custId, photoIndex) => {
+        await delay(50);
+        const db = getDB();
+        const idx = db.customers.findIndex(c => c.id === custId);
+        if (idx === -1) throw new Error('客户不存在');
+        if (db.customers[idx].wish_photos) {
+            db.customers[idx].wish_photos.splice(photoIndex, 1);
+        }
+        saveDB(db);
+        return db.customers[idx];
+    },
+
+    // 更新消费记录照片
+    updateConsumptionPhoto: async (recordId, photoUrl) => {
+        await delay(50);
+        const db = getDB();
+        if (!db.consumption_records) db.consumption_records = [];
+        const idx = db.consumption_records.findIndex(r => r.id === recordId);
+        if (idx === -1) throw new Error('消费记录不存在');
+        db.consumption_records[idx].photo = photoUrl;
+        saveDB(db);
+        return db.consumption_records[idx];
     },
 
     recharge: async (custId, data) => {
@@ -217,6 +254,7 @@ export const api = {
             amount: amount,
             payment_method: payMethod,
             notes: data.notes || data.remark || '',
+            photo: data.photo || '',
             created_at: new Date().toISOString(),
         };
 
